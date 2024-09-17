@@ -1,14 +1,14 @@
 import numpy as np
 import pandas as pd
 import ast
-from sklearn.decomposition import TruncatedSVD
-from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 
 businesses = pd.read_json("data/yelp_academic_dataset_business.json", lines=True, orient='columns')
 
-city = businesses[(businesses['city'] == 'Vancouver') & (businesses['is_open'] == 1)]
+city = businesses[(businesses['is_open'] == 1) & (businesses['city'] == 'Vancouver')]
 
 vancouver = city[['business_id','name','address', 'categories', 'attributes','stars']]
 
@@ -47,4 +47,33 @@ df_final.drop('Restaurants',inplace=True,axis=1)
 mapper = {1.0:1,1.5:2, 2.0:2, 2.5:3, 3.0:3, 3.5:4, 4.0:4, 4.5:5, 5.0:5}
 df_final['stars'] = df_final['stars'].map(mapper)
 
-df_final.to_csv("data/yelp_academic_dataset_business.csv", index=False)
+X = df_final.iloc[:,:-3]
+y = df_final['stars']
+
+X_train_knn, X_test_knn, y_train_knn, y_test_knn = train_test_split(X, y, test_size=0.3, random_state=1)
+
+# Define the parameter grid
+
+knn = KNeighborsClassifier(n_neighbors=25)
+knn.fit(X_train_knn, y_train_knn)
+
+# Print the best parameters and the best score
+
+
+print(df_final.iloc[-2, -3:])
+
+test_set =  df_final.iloc[:1,:-3]
+
+X_val =  df_final.iloc[1:,:-3]
+y_val = df_final['stars'].iloc[:-1]
+
+n_knn = knn.fit(X_val, y_val)
+
+final_table = pd.DataFrame(n_knn.kneighbors(test_set)[0][0], columns = ['distance'])
+final_table['index'] = n_knn.kneighbors(test_set)[1][0]
+final_table.set_index('index')
+
+
+# get names of the restaurant that similar to the "Steak & Cheese & Quick Pita Restaurant"
+result = final_table.join(df_final,on='index')
+print(result[['distance','index','name','stars']].head(10))
